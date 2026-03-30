@@ -516,7 +516,7 @@ def parse_PDB(
     device: str = "cpu",
     chains: list = [],
     parse_all_atoms: bool = False,
-    parse_atoms_with_zero_occupancy: bool = False
+    parse_atoms_with_zero_occupancy: bool = False,
 ):
     """
     input_path : path for the input PDB
@@ -786,7 +786,9 @@ def parse_PDB(
 
     protein_atoms = atoms.select("protein")
     backbone = protein_atoms.select("backbone")
-    other_atoms = atoms.select("not protein and not water")
+    other_atoms = atoms.select(
+        f"(not protein and not water) or (protein and not name {' '.join(all_sidechain)})"
+    )
     water_atoms = atoms.select("water")
 
     CA_atoms = protein_atoms.select("name CA")
@@ -829,7 +831,7 @@ def parse_PDB(
     S = [restype_3to1[AA] if AA in list(restype_3to1) else "X" for AA in list(S)]
     S = np.array([restype_STRtoINT[AA] for AA in list(S)], np.int32)
     X = np.concatenate([N[:, None], CA[:, None], C[:, None], O[:, None]], 1)
-
+    # Process other atoms
     try:
         Y = np.array(other_atoms.getCoords(), dtype=np.float32)
         Y_t = list(other_atoms.getElements())
@@ -885,7 +887,6 @@ def parse_PDB(
     output_dict["xyz_37_m"] = torch.tensor(xyz_37_m, device=device, dtype=torch.int32)
 
     return output_dict, backbone, other_atoms, CA_icodes, water_atoms
-
 
 def get_nearest_neighbours(CB, mask, Y, Y_t, Y_m, number_of_ligand_atoms):
     device = CB.device
